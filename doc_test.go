@@ -1,14 +1,14 @@
-package handle
+package handle_test
 
 import (
 	"errors"
 	"fmt"
-	//	"github.com/michaelmacinnis/handle"
+
+	"github.com/michaelmacinnis/handle"
 )
 
 func do(name string) (err error) {
-	// check, handle := handle.Errorf(&err, "do(%s)", name); defer handle()
-	check, handle := Errorf(&err, "do(%s)", name)
+	check, handle := handle.Errorf(&err, "do(%s)", name); defer handle()
 	defer handle()
 
 	// More compact than writing:
