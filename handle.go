@@ -3,8 +3,8 @@
 // To use handle, the enclosing function must use named return values. The
 // error returned can be wrapped:
 //
-//     do(s string) (err error) {
-//         check, handle := handle.Errorf(&err, "do(%s)", s); defer handle()
+//     do(name string) (err error) {
+//         check, handle := handle.Errorf(&err, "do(%s)", name); defer handle()
 //
 //         // ...
 //
@@ -13,7 +13,7 @@
 //
 // or returned unmodified:
 //
-//     do(s string) (err error) {
+//     do(name string) (err error) {
 //         check, handle := handle.Error(&err); defer handle()
 //
 //         // ...
