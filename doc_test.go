@@ -18,29 +18,29 @@ func do(name string) (err error) {
 	//         return err
 	//     }
 	//
-	s, err := work(name)
+	s, err := works(name)
 	check(err)
 
-	fmt.Printf("success(%s): %s\n", name, s)
+	fmt.Printf("works(%s): %s\n", name, s)
 
 	// The check can be cuddled to keep everything on one line.
-	s, err = fail(name); check(err)
+	s, err = fails(name); check(err)
 
 	// We will never reach here.
-	fmt.Printf("failure(%s): %s\n", name, s)
+	fmt.Printf("fails(%s): %s\n", name, s)
 
 	return nil
 }
 
-func fail(name string) (string, error) {
+func fails(name string) (string, error) {
 	return "", errors.New("failure")
 }
 
-func work(name string) (string, error) {
+func works(name string) (string, error) {
 	return "Hello, " + name, nil
 }
 
 func Example() {
 	do("World!")
-	// Output: success(World!): Hello, World!
+	// Output: works(World!): Hello, World!
 }
