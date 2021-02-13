@@ -23,7 +23,7 @@ or returned unmodified:
         return
     }
 
-With a deferred handle any call to check with a non-nil error will cause the
+With a deferred handle any call to `check` with a non-nil error will cause the
 enclosing function to return.
 
     // Return if err is not nil.
