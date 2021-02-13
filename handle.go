@@ -31,10 +31,16 @@ package handle
 
 import "fmt"
 
+// Error returns a check and handle function. When passed a non-nil error check
+// triggers the deferred handle function to return the error from the enclosing
+// function.
 func Error(err *error) (func(error), func()) {
 	return errorf(unwrapped, err, "", nil)
 }
 
+// Error returns a check and handle function. When passed a non-nil error check
+// triggers the deferred handle function to wrap and return the error from the
+// enclosing function.
 func Errorf(err *error, format string, args ...interface{}) (func(error), func()) {
 	return errorf(rewrapped, err, format, args)
 }
