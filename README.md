@@ -1,6 +1,7 @@
 # Handle
 
-Package handle reduces the amount of boilerplate required to handle errors.
+Package handle reduces the boilerplate required for some error handling
+patterns in Go.
 
 ## Documentation
 
