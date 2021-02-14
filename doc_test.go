@@ -9,7 +9,6 @@ import (
 
 func do(name string) (err error) {
 	check, handle := handle.Errorf(&err, "do(%s)", name); defer handle()
-	defer handle()
 
 	// More compact than writing:
 	//
