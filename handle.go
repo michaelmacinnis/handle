@@ -1,8 +1,8 @@
 // Package handle reduces the boilerplate required for some error handling
 // patterns.
 //
-// To use handle, the enclosing function must use named return values. The
-// error returned can be wrapped:
+// To use handle.Errorf or handle.Error, the enclosing function must use named
+// return values. The error returned can be wrapped:
 //
 //     do(name string) (err error) {
 //         check, handle := handle.Errorf(&err, "do(%s)", name)
