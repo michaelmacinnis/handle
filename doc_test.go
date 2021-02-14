@@ -8,7 +8,8 @@ import (
 )
 
 func do(name string) (err error) {
-	check, handle := handle.Errorf(&err, "do(%s)", name); defer handle()
+	check, handle := handle.Errorf(&err, "do(%s)", name)
+	defer handle()
 
 	// More compact than writing:
 	//
@@ -23,7 +24,8 @@ func do(name string) (err error) {
 	fmt.Printf("works(%s): %s\n", name, s)
 
 	// The check can be cuddled to keep everything on one line.
-	s, err = fails(name); check(err)
+	s, err = fails(name)
+	check(err)
 
 	// We will never reach here.
 	fmt.Printf("fails(%s): %s\n", name, s)
