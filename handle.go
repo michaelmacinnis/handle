@@ -65,6 +65,16 @@ type failure struct {
 	error
 }
 
+// Error reports the failure as unhandled when encountered "in the wild".
+func (f failure) Error() string {
+	s := "unhandled error"
+	if f.error != nil {
+		s += ": " + f.error.Error()
+	}
+
+	return s
+}
+
 func check(err *error) func(error) {
 	return func(ce error) {
 		if ce != nil {
@@ -79,7 +89,7 @@ func handle(err *error, cb func(error)) func() {
 		if f, ok := (*err).(failure); ok { //nolint:errorlint
 			r := recover()
 			if rf, ok := r.(failure); !ok || rf != f {
-				panic("unexpected error")
+				panic(fmt.Sprintf("unexpected panic %v, while handling %v", r, f.error))
 			}
 
 			cb(f.error)
