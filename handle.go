@@ -84,15 +84,22 @@ func check(err *error) func(error) {
 	}
 }
 
-func handle(err *error, cb func(error)) func() {
+func handle(err *error, ef func(error)) func() {
 	return func() {
 		if f, ok := (*err).(failure); ok { //nolint:errorlint
+			// We should be here because of a call to check so recover the panic.
 			r := recover()
 			if rf, ok := r.(failure); !ok || rf != f {
+				// If we don't recover the same error something went very wrong...
 				panic(fmt.Sprintf("unexpected panic %v, while handling %v", r, f.error))
 			}
 
-			cb(f.error)
+			*err = f.error
+		}
+
+		// If *err is set either by check or a normal return, call the error function.
+		if *err != nil {
+			ef(*err)
 		}
 	}
 }
