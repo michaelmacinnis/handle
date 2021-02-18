@@ -1,9 +1,9 @@
 // Package handle reduces the boilerplate required for some error handling
 // patterns.
 //
-// In functions where the handling of each error is unique or
-// where only a few errors need to be handled, it is probably best to handle
-// errors the standard way:
+// In functions where the handling of each error is unique or where only a
+// few errors need to be handled, it is probably best to handle errors the
+// standard way:
 //
 //     f, err := os.Open(name)
 //     if err != nil {
