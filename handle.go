@@ -14,7 +14,7 @@
 // the full power of Go to simplify error handling applies.
 //
 // In functions where more than a few errors need to be handled and where all
-// errors will be handled in the same way, the handle package can be used to
+// errors will be handled in a similar way, the handle package can be used to
 // ensure consistency while reducing the amount of code dedicated to error
 // handling.
 //
@@ -76,6 +76,28 @@
 //         //...
 //
 //         return
+//     }
+//
+// Additional error handling actions can be added with handle.Chain as in
+// the example below adapted from Error Handling - Problem Overview:
+//
+// https://go.googlesource.com/proposal/+/master/design/go2draft-error-handling-overview.md
+//
+//     func CopyFile(src, dst string) (err error) {
+//         check, done := handle.Errorf(&err, "copy %s %s", src, dst);
+//         defer done()
+//
+//         r, err := os.Open(src); check(err)
+//         defer r.Close()
+//
+//         w, err := os.Create(dst); check(err)
+//         defer handle.Chain(&err, func() {
+//             w.Close()
+//             os.Remove(dst)
+//         })
+//
+//         _, err = io.Copy(w, r); check(err)
+//         return w.Close()
 //     }
 package handle
 
