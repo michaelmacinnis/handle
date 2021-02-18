@@ -10,8 +10,8 @@ import (
 var errFailure = errors.New("failure")
 
 func do(name string) (err error) {
-	check, handle := handle.Errorf(&err, "do(%s)", name)
-	defer handle()
+	check, done := handle.Errorf(&err, "do(%s)", name)
+	defer done()
 
 	// More compact than writing:
 	//

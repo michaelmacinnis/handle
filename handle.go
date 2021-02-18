@@ -10,20 +10,23 @@
 //         // Handle error.
 //     }
 //
+// And, of course, the usual advice about treating errors as values and using
+// the full power of Go to simplify error handling applies.
+//
 // In functions where more than a few errors need to be handled and where all
 // errors will be handled in the same way, the handle package can be used to
 // ensure consistency while reducing the amount of code dedicated to error
 // handling.
 //
 // If the enclosing function expects to return an error it must use named
-// return values so that the check and handle functions can be bound to the
-// error value.
+// return values so that the check and done functions can be bound to the error
+// value.
 //
 // The error returned can be wrapped:
 //
 //     func do(name string) (err error) {
-//         check, handle := handle.Errorf(&err, "do(%s)", name)
-//         defer handle()
+//         check, done := handle.Errorf(&err, "do(%s)", name)
+//         defer done()
 //
 //         // ...
 //
@@ -33,16 +36,16 @@
 // or returned unmodified:
 //
 //     func do(name string) (err error) {
-//         check, handle := handle.Error(&err)
-//         defer handle()
+//         check, done := handle.Error(&err)
+//         defer done()
 //
 //         // ...
 //
 //         return
 //     }
 //
-// With a deferred handle any call to check with a non-nil error will cause
-// the enclosing function to return.
+// With a deferred done any call to check with a non-nil error will cause the
+// enclosing function to return.
 //
 //     // Return if err is not nil.
 //     f, err := os.Open(name); check(err)
@@ -51,10 +54,10 @@
 // behavior on errors:
 //
 //     func do(name string) (err error) {
-//         check, handle := handle.Error(&err, func(){
+//         check, done := handle.Error(&err, func(){
 //             // Log err.
 //         })
-//         defer handle()
+//         defer done()
 //
 //         //...
 //
@@ -65,10 +68,10 @@
 //
 //     func do(name string) {
 //         var err error
-//         check, handle := handle.Error(&err, func(){
+//         check, done := handle.Error(&err, func(){
 //             // Log err.
 //         })
-//         defer handle()
+//         defer done()
 //
 //         //...
 //
@@ -98,21 +101,21 @@ func Chain(err *error, fn func()) {
 	fn()
 }
 
-// Error returns a check and handle function. When passed a non-nil error,
-// check triggers the deferred handle function to call each function in fns
+// Error returns a check and done function. When passed a non-nil error,
+// check triggers the deferred done function to call each function in fns
 // before returning from the enclosing function. If err is nil, the check
-// and handle functions will be bound to an internal shared error value.
+// and done functions will be bound to an internal shared error value.
 func Error(err *error, fns ...func()) (func(error), func()) {
 	var shared error
 	if err == nil {
 		err = &shared
 	}
 
-	return check(err), handle(err, fns...)
+	return check(err), done(err, fns...)
 }
 
-// Errorf returns a check and handle function. When passed a non-nil error,
-// check triggers the deferred handle function to wrap the error being returned
+// Errorf returns a check and done function. When passed a non-nil error,
+// check triggers the deferred done function to wrap the error being returned
 // from the enclosing function.
 func Errorf(err *error, format string, args ...interface{}) (func(error), func()) {
 	return Error(err, func() {
@@ -148,7 +151,7 @@ func check(err *error) func(error) {
 	}
 }
 
-func handle(err *error, fns ...func()) func() {
+func done(err *error, fns ...func()) func() {
 	return func() {
 		if f, ok := (*err).(failure); ok { //nolint:errorlint
 			// We should be here because of a call to check so recover the panic.
