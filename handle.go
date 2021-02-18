@@ -78,6 +78,17 @@ package handle
 
 import "fmt"
 
+// Chain returns a new check function that adds an additional action fn to
+// perform when passed a non-nil error before calling the old check function.
+func Chain(check func(error), fn func()) func(error) {
+	return func(ce error) {
+		if ce != nil {
+			fn()
+			check(ce)
+		}
+	}
+}
+
 // Error returns a check and handle function. When passed a non-nil error,
 // check triggers the deferred handle function to call each function in fns
 // before returning from the enclosing function. If err is nil, the check
