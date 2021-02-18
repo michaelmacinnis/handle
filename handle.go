@@ -35,20 +35,19 @@ package handle
 import "fmt"
 
 // Error returns a check and handle function. When passed a non-nil error,
-// check triggers the deferred handle function to call each functions in fns
+// check triggers the deferred handle function to call each function in fns
 // before returning from the enclosing function.
 func Error(err *error, fns ...func()) (func(error), func()) {
+	var shared error
 	if err == nil {
-		var shared error
-
-		return check(&shared), handle(&shared, fns...)
+		err = &shared
 	}
 
 	return check(err), handle(err, fns...)
 }
 
 // Errorf returns a check and handle function. When passed a non-nil error,
-// check triggers the deferred handle function to wrap and return the error
+// check triggers the deferred handle function to wrap the error being returned
 // from the enclosing function.
 func Errorf(err *error, format string, args ...interface{}) (func(error), func()) {
 	return Error(err, func() {
