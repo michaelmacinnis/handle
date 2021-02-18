@@ -1,8 +1,8 @@
 // Package handle reduces the boilerplate required for some error handling
 // patterns.
 //
-// To use handle.Errorf or handle.Error, the enclosing function must use named
-// return values. The error returned can be wrapped:
+// The enclosing function must use named return values. The error returned
+// can be wrapped:
 //
 //     do(name string) (err error) {
 //         check, handle := handle.Errorf(&err, "do(%s)", name)
@@ -38,27 +38,29 @@ import "fmt"
 // check triggers the deferred handle function to return the error from the
 // enclosing function.
 func Error(err *error) (func(error), func()) {
-	return check(err), handle(err, func(ce error) {
-		*err = ce
-	})
+	return Func(err, func() {})
 }
 
 // Errorf returns a check and handle function. When passed a non-nil error,
 // check triggers the deferred handle function to wrap and return the error
 // from the enclosing function.
 func Errorf(err *error, format string, args ...interface{}) (func(error), func()) {
-	return check(err), handle(err, func(ce error) {
-		*err = fmt.Errorf(format+": %w", append(args, ce)...) //nolint:goerr113
+	return Func(err, func() {
+		*err = fmt.Errorf(format+": %w", append(args, *err)...) //nolint:goerr113
 	})
 }
 
 // Func returns a check and handle function. When passed a non-nil error,
-// check triggers the deferred handle function to call the function ef with
-// the error before returning from the enclosing function.
-func Func(ef func(error)) (func(error), func()) {
-	var err error
+// check triggers the deferred handle function to call the function fn before
+// returning from the enclosing function.
+func Func(err *error, fn func()) (func(error), func()) {
+	if err == nil {
+		var shared error
 
-	return check(&err), handle(&err, ef)
+		return check(&shared), handle(&shared, fn)
+	}
+
+	return check(err), handle(err, fn)
 }
 
 type failure struct {
@@ -84,7 +86,7 @@ func check(err *error) func(error) {
 	}
 }
 
-func handle(err *error, ef func(error)) func() {
+func handle(err *error, fn func()) func() {
 	return func() {
 		if f, ok := (*err).(failure); ok { //nolint:errorlint
 			// We should be here because of a call to check so recover the panic.
@@ -99,7 +101,7 @@ func handle(err *error, ef func(error)) func() {
 
 		// If *err is set either by check or a normal return, call the error function.
 		if *err != nil {
-			ef(*err)
+			fn()
 		}
 	}
 }
