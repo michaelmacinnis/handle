@@ -49,7 +49,6 @@ func ExampleError_func() {
 	// Output: err: failure
 }
 
-
 func ExampleCopyFile_no_error() {
 	dofakecopy(map[string]error{})
 	// Output:
@@ -141,19 +140,22 @@ https://go.googlesource.com/proposal/+/master/design/go2draft-error-handling-ove
 	}
 */
 func fakecopy(data map[string]error) (err error) {
-	check, done := handle.Errorf(&err, "copy(src, dst)");
+	check, done := handle.Errorf(&err, "copy(src, dst)")
 	defer done()
 
-	err = mock(data, "open(src)"); check(err)
+	err = mock(data, "open(src)")
+	check(err)
 	defer mock(data, "close(src)")
 
-	err = mock(data, "open(dst)"); check(err)
-    defer handle.Chain(&err, func() {
-        mock(data, "close(dst)")
-        mock(data, "remove(dst)")
-    })
+	err = mock(data, "open(dst)")
+	check(err)
+	defer handle.Chain(&err, func() {
+		mock(data, "close(dst)")
+		mock(data, "remove(dst)")
+	})
 
-	err = mock(data, "copy(dst, src)"); check(err)
+	err = mock(data, "copy(dst, src)")
+	check(err)
 	return mock(data, "close(dst)")
 }
 

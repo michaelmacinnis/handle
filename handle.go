@@ -115,7 +115,7 @@ func Chain(err *error, fn func()) {
 
 		// Rather than restoring *err if we have to unwrap it we re-wrap it
 		// in case the function fn changes err.
-		defer func(){
+		defer func() {
 			*err = failure{*err}
 		}()
 	}
