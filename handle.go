@@ -1,10 +1,27 @@
 // Package handle reduces the boilerplate required for some error handling
 // patterns.
 //
-// The enclosing function must use named return values. The error returned
-// can be wrapped:
+// In functions where the handling of each error is unique or
+// where only a few errors need to be handled, it is probably best to handle
+// errors the standard way:
 //
-//     do(name string) (err error) {
+//     f, err := os.Open(name)
+//     if err != nil {
+//         // Handle error.
+//     }
+//
+// In functions where more than a few errors need to be handled and where all
+// errors will be handled in the same way, the handle package can be used to
+// ensure consistency while reducing the amount of code dedicated to error
+// handling.
+//
+// If the enclosing function expects to return an error it must use named
+// return values so that the check and handle functions can be bound to the
+// error value.
+//
+// The error returned can be wrapped:
+//
+//     func do(name string) (err error) {
 //         check, handle := handle.Errorf(&err, "do(%s)", name)
 //         defer handle()
 //
@@ -15,7 +32,7 @@
 //
 // or returned unmodified:
 //
-//     do(name string) (err error) {
+//     func do(name string) (err error) {
 //         check, handle := handle.Error(&err)
 //         defer handle()
 //
@@ -30,13 +47,41 @@
 //     // Return if err is not nil.
 //     f, err := os.Open(name); check(err)
 //
+// An enclosing function can use check to trigger an early return with shared
+// behavior on errors:
+//
+//     func do(name string) (err error) {
+//         check, handle := handle.Error(&err, func(){
+//             // Log err.
+//         })
+//         defer handle()
+//
+//         //...
+//
+//         return
+//     }
+//
+// and it can do so even if the enclosing function does not return an error:
+//
+//     func do(name string) {
+//         var err error
+//         check, handle := handle.Error(&err, func(){
+//             // Log err.
+//         })
+//         defer handle()
+//
+//         //...
+//
+//         return
+//     }
 package handle
 
 import "fmt"
 
 // Error returns a check and handle function. When passed a non-nil error,
 // check triggers the deferred handle function to call each function in fns
-// before returning from the enclosing function.
+// before returning from the enclosing function. If err is nil, the check
+// and handle functions will be bound to an internal shared error value.
 func Error(err *error, fns ...func()) (func(error), func()) {
 	var shared error
 	if err == nil {
