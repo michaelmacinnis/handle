@@ -116,6 +116,11 @@ func (f failure) Error() string {
 
 func check(err *error) func(error) {
 	return func(ce error) {
+		// If *err is already a failure, don't overwrite it or panic again.
+		if _, ok := (*err).(failure); ok {
+			return
+		}
+
 		if ce != nil {
 			*err = failure{ce}
 			panic(*err)
