@@ -78,15 +78,24 @@ package handle
 
 import "fmt"
 
-// Chain returns a new check function that adds an additional action fn to
-// perform when passed a non-nil error before calling the old check function.
-func Chain(check func(error), fn func()) func(error) {
-	return func(ce error) {
-		if ce != nil {
-			fn()
-			check(ce)
-		}
+// Chain adds an additional action fn to perform when the return of a non-nil
+// error is triggered by check or by a regular return. Chain must be deferred.
+func Chain(err *error, fn func()) {
+	if *err == nil {
+		return
 	}
+
+	if f, ok := (*err).(failure); ok { //nolint:errorlint
+		*err = f.error
+
+		// Rather than restoring *err if we have to unwrap it we re-wrap it
+		// in case the function fn changes err.
+		defer func(){
+			*err = failure{*err}
+		}()
+	}
+
+	fn()
 }
 
 // Error returns a check and handle function. When passed a non-nil error,
