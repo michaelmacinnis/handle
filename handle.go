@@ -18,9 +18,9 @@
 // ensure consistency while reducing the amount of code dedicated to error
 // handling.
 //
-// If the enclosing function expects to return an error it must use named
-// return values so that the check and done functions can be bound to the error
-// value.
+// If the enclosing function expects to return an error, that error must be
+// a named return value so that the check and done functions can be bound to
+// it.
 //
 // The error returned can be wrapped:
 //
@@ -81,7 +81,7 @@
 // Additional error handling actions can be added with handle.Chain as in
 // the example below adapted from Error Handling - Problem Overview:
 //
-// https://go.googlesource.com/proposal/+/master/design/go2draft-error-handling-overview.md
+// github.com/golang/proposal/blob/master/design/go2draft-error-handling-overview.md
 //
 //     func CopyFile(src, dst string) (err error) {
 //         check, done := handle.Errorf(&err, "copy %s %s", src, dst);
@@ -103,7 +103,7 @@ package handle
 
 import "fmt"
 
-// Chain adds an additional action fn to perform when the return of a non-nil
+// Chain adds an additional action, fn, to perform when the return of a non-nil
 // error is triggered by check or by a regular return. Chain must be deferred.
 func Chain(err *error, fn func()) {
 	if *err == nil {
@@ -113,7 +113,7 @@ func Chain(err *error, fn func()) {
 	if f, ok := (*err).(failure); ok { //nolint:errorlint
 		*err = f.error
 
-		// Rather than restoring *err if we have to unwrap it we re-wrap it
+		// Rather than restoring *err, if we have to unwrap it, we re-wrap it,
 		// in case the function fn changes err.
 		defer func() {
 			*err = failure{*err}
@@ -161,14 +161,13 @@ func (f failure) Error() string {
 
 func check(err *error) func(error) {
 	return func(ce error) {
-		// If *err is already a failure, don't overwrite it or panic again.
-		if _, ok := (*err).(failure); ok {
-			return
-		}
-
 		if ce != nil {
-			*err = failure{ce}
-			panic(*err)
+			ce, *err = *err, failure{ce}
+
+			// Only panic if the previous value of *err was not a failure.
+			if _, ok := ce.(failure); !ok {
+				panic(*err)
+			}
 		}
 	}
 }
@@ -186,7 +185,7 @@ func done(err *error, fns ...func()) func() {
 			*err = f.error
 		}
 
-		// If *err is set either by check or a normal return, call the error functions.
+		// If *err was set by check or normal return, call the error functions.
 		if *err != nil {
 			for _, fn := range fns {
 				fn()
