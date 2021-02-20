@@ -133,7 +133,9 @@ func Error(err *error, fns ...func()) (func(error), func()) {
 		err = &shared
 	}
 
-	return check(err), done(err, fns...)
+	panicking := false
+
+	return check(&panicking, err), done(&panicking, err, fns...)
 }
 
 // Errorf returns a check and done function. When passed a non-nil error,
@@ -159,30 +161,31 @@ func (f failure) Error() string {
 	return s
 }
 
-func check(err *error) func(error) {
+func check(panicking *bool, err *error) func(error) {
 	return func(ce error) {
 		if ce != nil {
-			ce, *err = *err, failure{ce}
+			*err = failure{ce}
 
-			// Only panic if the previous value of *err was not a failure.
-			if _, ok := ce.(failure); !ok {
+			// Only panic if we haven't previously.
+			if !*panicking {
+				*panicking = true
+
 				panic(*err)
 			}
 		}
 	}
 }
 
-func done(err *error, fns ...func()) func() {
+func done(panicking *bool, err *error, fns ...func()) func() {
 	return func() {
-		if f, ok := (*err).(failure); ok { //nolint:errorlint
-			// We should be here because of a call to check so recover the panic.
-			r := recover()
-			if rf, ok := r.(failure); !ok || rf != f {
-				// If we don't recover the same error something went very wrong...
-				panic(fmt.Sprintf("unexpected panic %v, while handling %v", r, f.error))
-			}
+		if *panicking {
+			*panicking = false
 
-			*err = f.error
+			_ = recover()
+
+			if f, ok := (*err).(failure); ok { //nolint:errorlint
+				*err = f.error
+			}
 		}
 
 		// If *err was set by check or normal return, call the error functions.
