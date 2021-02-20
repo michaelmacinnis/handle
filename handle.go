@@ -84,7 +84,7 @@
 // github.com/golang/proposal/blob/master/design/go2draft-error-handling-overview.md
 //
 //     func CopyFile(src, dst string) (err error) {
-//         check, done := handle.Errorf(&err, "copy %s %s", src, dst);
+//         check, done := handle.Errorf(&err, "copy %s %s", src, dst)
 //         defer done()
 //
 //         r, err := os.Open(src); check(err)
