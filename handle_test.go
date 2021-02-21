@@ -108,6 +108,26 @@ func ExampleCopyFile_no_src() {
 	// copy(src, dst): src not found
 }
 
+func ExampleStopErr() {
+	var err error
+	check, done := handle.Error(&err, func() {
+		fmt.Printf("we should never see this\n")
+	})
+	defer done()
+
+	defer handle.Chain(&err, func() {
+		fmt.Printf("error handled\n")
+
+		// Pretend we did something here to handle the error
+		// To stop other handlers for firing we set err to nil.
+		err = nil
+	})
+
+	check(errors.New("an error"))
+	// Output:
+	// error handled
+}
+
 func docopy(data map[string]error) {
 	err := mockcopy(data)
 	if err != nil {
