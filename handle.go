@@ -117,13 +117,14 @@ func Chain(err *error, fn func()) {
 // and done functions will be bound to an internal shared error value.
 func Error(err *error, fns ...func()) (func(error), func()) {
 	var shared error
+
 	if err == nil {
 		err = &shared
 	}
 
-	panicking := false
+	s := &state{err: err, fns: fns}
 
-	return check(&panicking, err), done(&panicking, err, fns...)
+	return check(s), done(s)
 }
 
 // Errorf returns a check and done function. When passed a non-nil error,
@@ -149,14 +150,20 @@ func (f failure) Error() string {
 	return s
 }
 
-func check(panicking *bool, err *error) func(error) {
+type state struct {
+	err *error
+	fns []func()
+	pnc bool
+}
+
+func check(s *state) func(error) {
 	return func(ce error) {
 		if ce != nil {
-			*err = ce
+			*s.err = ce
 
 			// Only panic if we haven't previously.
-			if !*panicking {
-				*panicking = true
+			if !s.pnc {
+				s.pnc = true
 
 				panic(failure{ce})
 			}
@@ -164,17 +171,17 @@ func check(panicking *bool, err *error) func(error) {
 	}
 }
 
-func done(panicking *bool, err *error, fns ...func()) func() {
+func done(s *state) func() {
 	return func() {
-		if *panicking {
-			*panicking = false
+		if s.pnc {
+			s.pnc = false
 
 			_ = recover()
 		}
 
 		// If *err was set by check or normal return, call the error functions.
-		if *err != nil {
-			for _, fn := range fns {
+		if *s.err != nil {
+			for _, fn := range s.fns {
 				fn()
 			}
 		}
