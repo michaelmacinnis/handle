@@ -106,10 +106,6 @@ import "fmt"
 // Chain adds an additional action, fn, to perform when the return of a non-nil
 // error is triggered by check or by a regular return. Chain must be deferred.
 func Chain(err *error, fn func()) {
-	if *err == nil {
-		return
-	}
-
 	if f, ok := (*err).(failure); ok { //nolint:errorlint
 		*err = f.error
 
@@ -120,7 +116,9 @@ func Chain(err *error, fn func()) {
 		}()
 	}
 
-	fn()
+	if *err != nil {
+		fn()
+	}
 }
 
 // Error returns a check and done function. When passed a non-nil error,

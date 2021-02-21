@@ -116,6 +116,10 @@ func ExampleHandleErr() {
 	defer done()
 
 	defer handle.Chain(&err, func() {
+		fmt.Printf("we should never see this either\n")
+	})
+
+	defer handle.Chain(&err, func() {
 		fmt.Printf("error handled\n")
 
 		// Pretend we did something here to handle the error.
