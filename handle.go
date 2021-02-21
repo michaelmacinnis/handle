@@ -106,16 +106,6 @@ import "fmt"
 // Chain adds an additional action, fn, to perform when the return of a non-nil
 // error is triggered by check or by a regular return. Chain must be deferred.
 func Chain(err *error, fn func()) {
-	if f, ok := (*err).(failure); ok { //nolint:errorlint
-		*err = f.error
-
-		// Rather than restoring *err, if we have to unwrap it, we re-wrap it,
-		// in case the function fn changes err.
-		defer func() {
-			*err = failure{*err}
-		}()
-	}
-
 	if *err != nil {
 		fn()
 	}
@@ -162,13 +152,13 @@ func (f failure) Error() string {
 func check(panicking *bool, err *error) func(error) {
 	return func(ce error) {
 		if ce != nil {
-			*err = failure{ce}
+			*err = ce
 
 			// Only panic if we haven't previously.
 			if !*panicking {
 				*panicking = true
 
-				panic(*err)
+				panic(failure{ce})
 			}
 		}
 	}
@@ -180,10 +170,6 @@ func done(panicking *bool, err *error, fns ...func()) func() {
 			*panicking = false
 
 			_ = recover()
-
-			if f, ok := (*err).(failure); ok { //nolint:errorlint
-				*err = f.error
-			}
 		}
 
 		// If *err was set by check or normal return, call the error functions.
