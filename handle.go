@@ -1,9 +1,10 @@
 // Package handle reduces the boilerplate required for some error handling
-// patterns.
+// patterns by (ab)using panic and recover for flow control. Because of this
+// handle does not compose well with goroutines.
 //
 // In functions where the handling of each error is unique or where only a
-// few errors need to be handled, it is probably best to handle errors the
-// standard way:
+// few errors need to be handled, it is best to handle errors with a simple
+// if statement:
 //
 //     f, err := os.Open(name)
 //     if err != nil {
@@ -87,18 +88,31 @@
 //         check, done := handle.Errorf(&err, "copy %s %s", src, dst)
 //         defer done()
 //
-//         r, err := os.Open(src); check(err)
+//         r, err := os.Open(src)
+//         check(err)
+//
 //         defer r.Close()
 //
-//         w, err := os.Create(dst); check(err)
+//         w, err := os.Create(dst)
+//         check(err)
+//
 //         defer handle.Chain(&err, func() {
 //             w.Close()
 //             os.Remove(dst)
 //         })
 //
-//         _, err = io.Copy(w, r); check(err)
+//         _, err = io.Copy(w, r)
+//         check(err)
+//
 //         return w.Close()
 //     }
+//
+// Care must be taken to ensure that the done function returned by Error or
+// Errorf is deferred. Failure to do so will result in an unhandled panic.
+// Harder to guard against, the check function must not cross goroutine
+// boundaries. It must be invoked by the same goroutine that deferred the
+// done function. Calling the check function in another goroutine will also
+// result in an unhandled panic.
 package handle
 
 import "fmt"
