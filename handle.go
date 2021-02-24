@@ -1,6 +1,6 @@
 // Package handle reduces the boilerplate required for some error handling
-// patterns by (ab)using panic and recover for flow control. Because of this
-// handle does not compose well with goroutines.
+// patterns by (ab)using panic and recover for flow control. See the warnings
+// section for more detail.
 //
 // In functions where the handling of each error is unique or where only a
 // few errors need to be handled, it is best to handle errors with a simple
@@ -20,14 +20,14 @@
 // handling.
 //
 // If the enclosing function expects to return an error, that error must be
-// a named return value so that the check and done functions can be bound to
-// it.
+// a named return value so that the escape.On method and hatch function can
+// be bound to it.
 //
 // The error returned can be wrapped:
 //
 //     func do(name string) (err error) {
-//         check, done := handle.Errorf(&err, "do(%s)", name)
-//         defer done()
+//         escape, hatch := handle.Errorf(&err, "do(%s)", name)
+//         defer hatch()
 //
 //         // ...
 //
@@ -37,28 +37,29 @@
 // or returned unmodified:
 //
 //     func do(name string) (err error) {
-//         check, done := handle.Error(&err)
-//         defer done()
+//         escape, hatch := handle.Error(&err)
+//         defer hatch()
 //
 //         // ...
 //
 //         return
 //     }
 //
-// With a deferred done any call to check with a non-nil error will cause the
-// enclosing function to return.
+// With a deferred hatch any call to escape.On with a non-nil error will cause
+// the enclosing function to return.
 //
 //     // Return if err is not nil.
-//     f, err := os.Open(name); check(err)
+//     f, err := os.Open(name)
+//     escape.On(err)
 //
-// An enclosing function can use check to trigger an early return with shared
-// behavior on errors:
+// An enclosing function can use escape.On to trigger an early return with
+// shared behavior on errors:
 //
 //     func do(name string) (err error) {
-//         check, done := handle.Error(&err, func(){
+//         escape, hatch := handle.Error(&err, func(){
 //             // Log err.
 //         })
-//         defer done()
+//         defer hatch()
 //
 //         //...
 //
@@ -69,10 +70,10 @@
 //
 //     func do(name string) {
 //         var err error
-//         check, done := handle.Error(&err, func(){
+//         escape, hatch := handle.Error(&err, func(){
 //             // Log err.
 //         })
-//         defer done()
+//         defer hatch()
 //
 //         //...
 //
@@ -85,16 +86,16 @@
 // github.com/golang/proposal/blob/master/design/go2draft-error-handling-overview.md
 //
 //     func CopyFile(src, dst string) (err error) {
-//         check, done := handle.Errorf(&err, "copy %s %s", src, dst)
-//         defer done()
+//         escape, hatch := handle.Errorf(&err, "copy %s %s", src, dst)
+//         defer hatch()
 //
 //         r, err := os.Open(src)
-//         check(err)
+//         escape.On(err)
 //
 //         defer r.Close()
 //
 //         w, err := os.Create(dst)
-//         check(err)
+//         escape.On(err)
 //
 //         defer handle.Chain(&err, func() {
 //             w.Close()
@@ -102,49 +103,76 @@
 //         })
 //
 //         _, err = io.Copy(w, r)
-//         check(err)
+//         escape.On(err)
 //
 //         return w.Close()
 //     }
 //
-// Care must be taken to ensure that the done function returned by Error or
-// Errorf is deferred. Failure to do so will result in an unhandled panic.
-// Harder to guard against, the check function must not cross goroutine
-// boundaries. It must be invoked by the same goroutine that deferred the
-// done function. Calling the check function in another goroutine will also
-// result in an unhandled panic.
+// WARNINGS
+//
+// Care must be taken to ensure that the hatch function returned by Error
+// or Errorf is deferred. Failure to do so will result in an unhandled panic
+// when escape.On is invoked.
+//
+// The escape.On method must not cross goroutine boundaries. In addition, it
+// should only be invoked by the the function that deferred the hatch function
+// or a function called by that function. Calling the escape.On method in
+// another goroutine or after the function that deferred hatch has returned
+// will result in an unhandled panic.
+//
+// If you are unsure, set Name to the name given to the escape object and run:
+//
+//     Name=escape
+//     go build -gcflags '-m' 2>&1 | grep -F "${Name}.On escapes to heap"
+//
+// If you see:
+//
+//     path.go:line:column: ${Name}.On escapes to heap
+//
+// You are probably doing something that won't end well.
 package handle
 
 import "fmt"
 
-// Chain adds an additional action, fn, to perform when the return of a non-nil
-// error is triggered by check or by a regular return. Chain must be deferred.
+// Chain adds an additional action, fn, to perform when a non-nil error is
+// being returned. Chain must be deferred.
 func Chain(err *error, fn func()) {
 	if *err != nil {
 		fn()
 	}
 }
 
-// Error returns a check and done function. When passed a non-nil error,
-// check triggers the deferred done function to call each function in fns
-// before returning from the enclosing function. If err is nil, the check
-// and done functions will be bound to an internal shared error value.
-func Error(err *error, fns ...func()) (func(error), func()) {
+// Error returns an escape object and a hatch function. When passed a non-nil
+// error, escape.On sets the bound error *err and triggers the deferred hatch
+// function to recover the panic (if there was one) and then, while *err
+// remains non-nil, it calls each function in fns (in reverse order to match
+// the LIFO order of deferred functions).
+func Error(err *error, fns ...func()) (*escape, func()) {
 	var shared error
 
 	if err == nil {
 		err = &shared
 	}
 
-	s := &state{err: err, fns: fns}
+	s := &escape{err: err, fns: fns}
 
-	return check(s), done(s)
+	return s, func() {
+		if s.pnc {
+			s.pnc = false
+
+			_ = recover()
+		}
+
+		// Call the error functions in while *s.err is not nil.
+		// Functions are called in reverse order to match defers.
+		for i := len(s.fns) - 1; *s.err != nil && i >= 0; i-- {
+			fns[i]()
+		}
+	}
 }
 
-// Errorf returns a check and done function. When passed a non-nil error,
-// check triggers the deferred done function to wrap the error being returned
-// from the enclosing function.
-func Errorf(err *error, format string, args ...interface{}) (func(error), func()) {
+// Errorf calls Error passing it a function that wraps the error returned.
+func Errorf(err *error, format string, args ...interface{}) (*escape, func()) {
 	return Error(err, func() {
 		*err = fmt.Errorf(format+": %w", append(args, *err)...) //nolint:goerr113
 	})
@@ -164,40 +192,23 @@ func (f failure) Error() string {
 	return s
 }
 
-type state struct {
+type escape struct {
 	err *error
 	fns []func()
 	pnc bool
 }
 
-func check(s *state) func(error) {
-	return func(ce error) {
-		if ce != nil {
-			*s.err = ce
+// On sets the bound error to the error passed if that error is non-nil and
+// then triggers a panic if one hasn't already been triggered.
+func (s *escape) On(ce error) {
+	if ce != nil {
+		*s.err = ce
 
-			// Only panic if we haven't previously.
-			if !s.pnc {
-				s.pnc = true
+		// Only panic if we haven't previously.
+		if !s.pnc {
+			s.pnc = true
 
-				panic(failure{ce})
-			}
-		}
-	}
-}
-
-func done(s *state) func() {
-	return func() {
-		if s.pnc {
-			s.pnc = false
-
-			_ = recover()
-		}
-
-		// If *err was set by check or normal return, call the error functions.
-		if *s.err != nil {
-			for _, fn := range s.fns {
-				fn()
-			}
+			panic(failure{ce})
 		}
 	}
 }

@@ -10,8 +10,8 @@ import (
 var errFailure = errors.New("failure")
 
 func do(name string) (err error) {
-	check, done := handle.Errorf(&err, "do(%s)", name)
-	defer done()
+	escape, hatch := handle.Errorf(&err, "do(%s)", name)
+	defer hatch()
 
 	// More compact than writing:
 	//
@@ -21,12 +21,12 @@ func do(name string) (err error) {
 	//     }
 	//
 	s, err := works(name)
-	check(err)
+	escape.On(err)
 
 	fmt.Printf("works(%s): %s\n", name, s)
 
 	s, err = fails(name)
-	check(err)
+	escape.On(err)
 
 	// We will never reach here.
 	fmt.Printf("fails(%s): %s\n", name, s)

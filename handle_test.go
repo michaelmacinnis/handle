@@ -9,16 +9,16 @@ import (
 
 func ExampleError_func() {
 	var err error
-	check, done := handle.Error(&err, func() {
+	escape, hatch := handle.Error(&err, func() {
 		fmt.Printf("err: %s\n", err.Error())
 	})
-	defer done()
+	defer hatch()
 
 	s, err := works("World!")
-	check(err)
+	escape.On(err)
 
 	s, err = fails("World!")
-	check(err)
+	escape.On(err)
 
 	// We will never reach here
 	fmt.Printf("%s\n", s)
@@ -28,16 +28,16 @@ func ExampleError_func() {
 
 func ExampleError_unmodified() {
 	f := func() (err error) {
-		check, done := handle.Error(&err)
-		defer done()
+		escape, hatch := handle.Error(&err)
+		defer hatch()
 
 		s, err := fails("World!")
-		check(err)
+		escape.On(err)
 
 		// We will never reach here
 
 		s, err = works("World!")
-		check(err)
+		escape.On(err)
 
 		fmt.Printf("%s\n", s)
 
@@ -110,10 +110,10 @@ func ExampleCopyFile_no_src() {
 
 func ExampleHandleErr() {
 	var err error
-	check, done := handle.Error(&err, func() {
+	escape, hatch := handle.Error(&err, func() {
 		fmt.Printf("we should never see this\n")
 	})
-	defer done()
+	defer hatch()
 
 	defer handle.Chain(&err, func() {
 		fmt.Printf("we should never see this either\n")
@@ -127,7 +127,7 @@ func ExampleHandleErr() {
 		err = nil
 	})
 
-	check(errors.New("an error"))
+	escape.On(errors.New("an error"))
 	// Output:
 	// error handled
 }
@@ -169,16 +169,16 @@ https://go.googlesource.com/proposal/+/master/design/go2draft-error-handling-ove
 	}
 */
 func mockcopy(data map[string]error) (err error) {
-	check, done := handle.Errorf(&err, "copy(src, dst)")
-	defer done()
+	escape, hatch := handle.Errorf(&err, "copy(src, dst)")
+	defer hatch()
 
 	err = mock(data, "open(src)")
-	check(err)
+	escape.On(err)
 
 	defer mock(data, "close(src)")
 
 	err = mock(data, "open(dst)")
-	check(err)
+	escape.On(err)
 
 	defer handle.Chain(&err, func() {
 		mock(data, "close(dst)")
@@ -186,7 +186,7 @@ func mockcopy(data map[string]error) (err error) {
 	})
 
 	err = mock(data, "copy(dst, src)")
-	check(err)
+	escape.On(err)
 
 	return mock(data, "close(dst)")
 }
