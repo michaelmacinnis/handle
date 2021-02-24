@@ -46,7 +46,7 @@
 //     }
 //
 // With a deferred hatch any call to escape.On with a non-nil error will cause
-// the enclosing function to return.
+// the enclosing function to return:
 //
 //     // Return if err is not nil.
 //     f, err := os.Open(name)
@@ -120,12 +120,15 @@
 // another goroutine or after the function that deferred hatch has returned
 // will result in an unhandled panic.
 //
-// If you are unsure, set Name to the name given to the escape object and run:
+// If you are unsure, set Name to the name given to the escape object,
 //
 //     Name=escape
+//
+// and run,
+//
 //     go build -gcflags '-m' 2>&1 | grep -F "${Name}.On escapes to heap"
 //
-// If you see:
+// If you see,
 //
 //     path.go:line:column: ${Name}.On escapes to heap
 //
