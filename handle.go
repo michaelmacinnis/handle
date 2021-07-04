@@ -220,4 +220,3 @@ func (f failure) Error() string {
 
 	return s
 }
-
