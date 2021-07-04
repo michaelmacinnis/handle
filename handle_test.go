@@ -49,6 +49,36 @@ func ExampleError_unmodified() {
 	// Output: failure
 }
 
+func annotate(e *handle.Escape) func(error, string, ...interface{}) {
+	return func(err error, format string, args ...interface{}) {
+		if err == nil {
+			return
+		}
+
+		e.On(fmt.Errorf(format+": %w", append(args, err)...))
+	}
+}
+
+func failure() error {
+	return errFailure
+}
+
+func additionalContext() (err error) {
+	escape, hatch := handle.Errorf(&err, "copy(src, dst)")
+	defer hatch()
+	check := annotate(escape)
+
+	check(failure(), "call to failure() failed")
+
+	return
+}
+
+func Example_annotate() {
+	fmt.Printf("%s\n", additionalContext().Error())
+	// Output:
+	// copy(src, dst): call to failure() failed: failure
+}
+
 func ExampleCopyFile_close_dst_err() {
 	docopy(map[string]error{
 		"close(dst)": errors.New("problem closing dst"),

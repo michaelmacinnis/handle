@@ -45,8 +45,8 @@
 //         return
 //     }
 //
-// With a deferred hatch any call to escape.On with a non-nil error will cause
-// the enclosing function to return:
+// With a deferred hatch, any call to escape.On with a non-nil error will
+// cause the enclosing function to return:
 //
 //     // Return if err is not nil.
 //     f, err := os.Open(name)
@@ -110,17 +110,19 @@
 //
 // WARNINGS
 //
-// Care must be taken to ensure that the hatch function returned by Error
-// or Errorf is deferred. Failure to do so will result in an unhandled panic
-// when escape.On is invoked.
+// Mixing handle with other uses of panic/recover is not recommended.
 //
-// The escape.On method must not cross goroutine boundaries. In addition, it
-// should only be invoked by the the function that deferred the hatch function
-// or a function called by that function. Calling the escape.On method in
-// another goroutine or after the function that deferred hatch has returned
-// will result in an unhandled panic.
+// To avoid unhandled panics, the hatch function returned by Error or
+// Errorf must be deferred before any escape.On invocations. The escape.On
+// method must also not be invoked in any goroutine other than the one in
+// which hatch was deferred or by any function outside of the call chain
+// rooted at the function where hatch was deferred.
 //
-// If you are unsure, set Name to the name given to the escape object,
+// Go's escape analysis can be used as an overly conservative check to
+// ensure that invocations of esape.On occur in the same goroutine and
+// call chain.
+//
+// Set Name to the name given to the escape object,
 //
 //     Name=escape
 //
@@ -132,7 +134,10 @@
 //
 //     path.go:line:column: ${Name}.On escapes to heap
 //
-// You are probably doing something that won't end well.
+// there is a chance you are doing something that won't end well.
+//
+// Note that this will not detect failure to defer hatch or mixing handle
+// with other uses of panic/recover.
 package handle
 
 import "fmt"
@@ -150,14 +155,14 @@ func Chain(err *error, fn func()) {
 // function to recover the panic (if there was one) and then, while *err
 // remains non-nil, it calls each function in fns (in reverse order to match
 // the LIFO order of deferred functions).
-func Error(err *error, fns ...func()) (*escape, func()) {
+func Error(err *error, fns ...func()) (*Escape, func()) {
 	var shared error
 
 	if err == nil {
 		err = &shared
 	}
 
-	s := &escape{err: err, fns: fns}
+	s := &Escape{err: err, fns: fns}
 
 	return s, func() {
 		if s.pnc {
@@ -175,7 +180,7 @@ func Error(err *error, fns ...func()) (*escape, func()) {
 }
 
 // Errorf calls Error passing it a function that wraps the error returned.
-func Errorf(err *error, format string, args ...interface{}) (*escape, func()) {
+func Errorf(err *error, format string, args ...interface{}) (*Escape, func()) {
 	return Error(err, func() {
 		*err = fmt.Errorf(format+": %w", append(args, *err)...) //nolint:goerr113
 	})
@@ -195,7 +200,7 @@ func (f failure) Error() string {
 	return s
 }
 
-type escape struct {
+type Escape struct {
 	err *error
 	fns []func()
 	pnc bool
@@ -203,7 +208,7 @@ type escape struct {
 
 // On sets the bound error to the error passed if that error is non-nil and
 // then triggers a panic if one hasn't already been triggered.
-func (s *escape) On(ce error) {
+func (s *Escape) On(ce error) {
 	if ce != nil {
 		*s.err = ce
 
