@@ -50,13 +50,13 @@ func ExampleError_unmodified() {
 }
 
 func Example_annotate() {
-	annotate := func(e *handle.Escape) func(error, string, ...interface{}) {
+	annotate := func(ef func(error)) func(error, string, ...interface{}) {
 		return func(err error, format string, args ...interface{}) {
 			if err == nil {
 				return
 			}
 
-			e.On(fmt.Errorf(format+": %w", append(args, err)...))
+			ef(fmt.Errorf(format+": %w", append(args, err)...))
 		}
 	}
 
@@ -68,7 +68,7 @@ func Example_annotate() {
 		escape, hatch := handle.Errorf(&err, "copy(src, dst)")
 		defer hatch()
 
-		check := annotate(escape)
+		check := annotate(escape.On)
 
 		check(failure(), "call to failure() failed")
 

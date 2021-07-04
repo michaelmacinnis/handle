@@ -155,14 +155,14 @@ func Chain(err *error, fn func()) {
 // function to recover the panic (if there was one) and then, while *err
 // remains non-nil, it calls each function in fns (in reverse order to match
 // the LIFO order of deferred functions).
-func Error(err *error, fns ...func()) (*Escape, func()) {
+func Error(err *error, fns ...func()) (*escape, func()) {
 	var shared error
 
 	if err == nil {
 		err = &shared
 	}
 
-	s := &Escape{err: err, fns: fns}
+	s := &escape{err: err, fns: fns}
 
 	return s, func() {
 		if s.pnc {
@@ -180,10 +180,31 @@ func Error(err *error, fns ...func()) (*Escape, func()) {
 }
 
 // Errorf calls Error passing it a function that wraps the error returned.
-func Errorf(err *error, format string, args ...interface{}) (*Escape, func()) {
+func Errorf(err *error, format string, args ...interface{}) (*escape, func()) {
 	return Error(err, func() {
 		*err = fmt.Errorf(format+": %w", append(args, *err)...) //nolint:goerr113
 	})
+}
+
+type escape struct {
+	err *error
+	fns []func()
+	pnc bool
+}
+
+// On sets the bound error to the error passed if that error is non-nil and
+// then triggers a panic if one hasn't already been triggered.
+func (s *escape) On(ce error) {
+	if ce != nil {
+		*s.err = ce
+
+		// Only panic if we haven't previously.
+		if !s.pnc {
+			s.pnc = true
+
+			panic(failure{ce})
+		}
+	}
 }
 
 type failure struct {
@@ -200,23 +221,3 @@ func (f failure) Error() string {
 	return s
 }
 
-type Escape struct {
-	err *error
-	fns []func()
-	pnc bool
-}
-
-// On sets the bound error to the error passed if that error is non-nil and
-// then triggers a panic if one hasn't already been triggered.
-func (s *Escape) On(ce error) {
-	if ce != nil {
-		*s.err = ce
-
-		// Only panic if we haven't previously.
-		if !s.pnc {
-			s.pnc = true
-
-			panic(failure{ce})
-		}
-	}
-}
